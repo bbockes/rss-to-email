@@ -1,4 +1,4 @@
-// RSS to Email Service using Resend
+// RSS to Email Service using Resend Broadcasts
 // File: index.js
 
 import Parser from 'rss-parser';
@@ -38,42 +38,55 @@ async function loadTemplate() {
   }
 }
 
-// Send email for a new post
-async function sendEmail(post) {
+// Send email as a broadcast to audience
+async function sendEmailBroadcast(post) {
   // Load the template
   const template = await loadTemplate();
-  
-  // Debug: log what content we have
-  console.log('Post content available:', {
-    hasContent: !!post.content,
-    hasContentEncoded: !!post['content:encoded'],
-    hasContentSnippet: !!post.contentSnippet,
-    contentLength: post.content?.length || 0,
-    contentEncodedLength: post['content:encoded']?.length || 0
-  });
   
   // Use content:encoded first (full content), then fallback to content, then snippet
   const fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
   
   // Replace placeholders with actual content
+  // Note: Add unsubscribe link for compliance
   const html = template
     .replace(/{{POST_TITLE}}/g, post.title)
     .replace(/{{POST_LINK}}/g, post.link)
     .replace(/{{POST_CONTENT}}/g, fullContent)
     .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title));
 
-  const { data, error } = await resend.emails.send({
+  console.log('Creating broadcast for audience...');
+
+  // Create the broadcast
+  const { data: broadcastData, error: createError } = await resend.broadcasts.create({
+    segmentId: process.env.RESEND_AUDIENCE_ID, // Your audience ID
     from: 'Brendan\'s Blog <onboarding@resend.dev>', // Change this after verifying your domain
-    to: process.env.RECIPIENT_EMAIL,
     subject: `New Post: ${post.title}`,
-    html: html
+    html: html,
+    name: `Blog Post: ${post.title}` // Internal reference name
   });
 
-  if (error) {
-    throw error;
+  if (createError) {
+    console.error('Error creating broadcast:', createError);
+    throw createError;
   }
 
-  return data;
+  console.log('Broadcast created:', broadcastData.id);
+  console.log('Sending broadcast now...');
+
+  // Send the broadcast immediately
+  const { data: sendData, error: sendError } = await resend.broadcasts.send(
+    broadcastData.id,
+    {
+      scheduledAt: 'now' // Send immediately
+    }
+  );
+
+  if (sendError) {
+    console.error('Error sending broadcast:', sendError);
+    throw sendError;
+  }
+
+  return sendData;
 }
 
 // Main function
@@ -101,9 +114,9 @@ async function checkFeedAndSend() {
     console.log(`Found ${newPosts.length} new post(s). Sending only the most recent.`);
     console.log(`Sending email for: ${mostRecentPost.title}`);
     
-    await sendEmail(mostRecentPost);
+    await sendEmailBroadcast(mostRecentPost);
     sentPosts.push(mostRecentPost.guid || mostRecentPost.link);
-    console.log('✓ Email sent!');
+    console.log('✓ Broadcast sent!');
     
     // Save updated sent posts
     await saveSentPosts(sentPosts);
