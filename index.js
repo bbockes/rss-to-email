@@ -1,5 +1,6 @@
 // RSS to Email Service using Resend Broadcasts
 // File: index.js
+// Updated v25
 
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
