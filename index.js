@@ -81,7 +81,7 @@ async function sendEmailBroadcast(post) {
   console.log('Broadcast created:', createData.id);
   console.log('Sending broadcast now...');
 
-  // Send the broadcast - schedule 5 minutes in the future to avoid timing issues
+  // Send the broadcast - schedule 30 seconds in the future
   const sendResponse = await fetch(`https://api.resend.com/broadcasts/${createData.id}/send`, {
     method: 'POST',
     headers: {
@@ -89,7 +89,7 @@ async function sendEmailBroadcast(post) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      scheduled_at: 'in 5 min'
+      scheduled_at: 'in 30 sec'
     })
   });
 
@@ -100,7 +100,7 @@ async function sendEmailBroadcast(post) {
     throw new Error(`Failed to send broadcast: ${JSON.stringify(sendData)}`);
   }
 
-  console.log('✓ Broadcast scheduled to send in 5 minutes!');
+  console.log('✓ Broadcast scheduled to send in 30 seconds!');
   return sendData;
 }
 
