@@ -47,7 +47,6 @@ async function sendEmailBroadcast(post) {
   const fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
   
   // Replace placeholders with actual content
-  // Note: Add unsubscribe link for compliance
   const html = template
     .replace(/{{POST_TITLE}}/g, post.title)
     .replace(/{{POST_LINK}}/g, post.link)
@@ -56,36 +55,52 @@ async function sendEmailBroadcast(post) {
 
   console.log('Creating broadcast for audience...');
 
-  // Create the broadcast
-  const { data: broadcastData, error: createError } = await resend.broadcasts.create({
-    segmentId: process.env.RESEND_AUDIENCE_ID, // Your audience ID
-    from: 'Brendan\'s Blog <onboarding@resend.dev>', // Change this after verifying your domain
-    subject: `New Post: ${post.title}`,
-    html: html,
-    name: `Blog Post: ${post.title}` // Internal reference name
+  // Create the broadcast using fetch (Resend SDK doesn't support broadcasts yet)
+  const createResponse = await fetch('https://api.resend.com/broadcasts', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      audience_id: process.env.RESEND_AUDIENCE_ID,
+      from: 'Brendan\'s Blog <onboarding@resend.dev>',
+      subject: `New Post: ${post.title}`,
+      html: html,
+      name: `Blog Post: ${post.title}`
+    })
   });
 
-  if (createError) {
-    console.error('Error creating broadcast:', createError);
-    throw createError;
+  const createData = await createResponse.json();
+  
+  if (!createResponse.ok) {
+    console.error('Error creating broadcast:', createData);
+    throw new Error(`Failed to create broadcast: ${JSON.stringify(createData)}`);
   }
 
-  console.log('Broadcast created:', broadcastData.id);
+  console.log('Broadcast created:', createData.id);
   console.log('Sending broadcast now...');
 
   // Send the broadcast immediately
-  const { data: sendData, error: sendError } = await resend.broadcasts.send(
-    broadcastData.id,
-    {
-      scheduledAt: 'now' // Send immediately
-    }
-  );
+  const sendResponse = await fetch(`https://api.resend.com/broadcasts/${createData.id}/send`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      scheduled_at: 'now'
+    })
+  });
 
-  if (sendError) {
-    console.error('Error sending broadcast:', sendError);
-    throw sendError;
+  const sendData = await sendResponse.json();
+  
+  if (!sendResponse.ok) {
+    console.error('Error sending broadcast:', sendData);
+    throw new Error(`Failed to send broadcast: ${JSON.stringify(sendData)}`);
   }
 
+  console.log('✓ Broadcast sent successfully!');
   return sendData;
 }
 
