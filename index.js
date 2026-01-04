@@ -28,27 +28,33 @@ async function saveSentPosts(sentPosts) {
   await fs.writeFile(SENT_POSTS_FILE, JSON.stringify(sentPosts, null, 2));
 }
 
+// Load email template
+async function loadTemplate() {
+  try {
+    return await fs.readFile('./email-template.html', 'utf8');
+  } catch (error) {
+    console.error('Error loading email template:', error);
+    throw error;
+  }
+}
+
 // Send email for a new post
 async function sendEmail(post) {
+  // Load the template
+  const template = await loadTemplate();
+  
+  // Replace placeholders with actual content
+  const html = template
+    .replace(/{{POST_TITLE}}/g, post.title)
+    .replace(/{{POST_LINK}}/g, post.link)
+    .replace(/{{POST_CONTENT}}/g, post.content || post.contentSnippet || '')
+    .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title));
+
   const { data, error } = await resend.emails.send({
-    from: 'Your Blog <onboarding@resend.dev>', // Change this after verifying your domain
+    from: 'Brendan\'s Blog <onboarding@resend.dev>', // Change this after verifying your domain
     to: process.env.RECIPIENT_EMAIL,
     subject: `New Post: ${post.title}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>${post.title}</h2>
-        <p style="color: #666; font-size: 14px;">
-          Published: ${new Date(post.pubDate).toLocaleDateString()}
-        </p>
-        <div style="margin: 20px 0;">
-          ${post.contentSnippet || post.content || ''}
-        </div>
-        <a href="${post.link}" 
-           style="display: inline-block; padding: 10px 20px; background: #000; color: #fff; text-decoration: none; border-radius: 5px;">
-          Read More
-        </a>
-      </div>
-    `
+    html: html
   });
 
   if (error) {
@@ -77,15 +83,15 @@ async function checkFeedAndSend() {
       return;
     }
     
-    console.log(`Found ${newPosts.length} new post(s)!`);
+    // Only send the most recent post
+    const mostRecentPost = newPosts[0];
     
-    // Send emails for new posts
-    for (const post of newPosts) {
-      console.log(`Sending email for: ${post.title}`);
-      await sendEmail(post);
-      sentPosts.push(post.guid || post.link);
-      console.log('✓ Email sent!');
-    }
+    console.log(`Found ${newPosts.length} new post(s). Sending only the most recent.`);
+    console.log(`Sending email for: ${mostRecentPost.title}`);
+    
+    await sendEmail(mostRecentPost);
+    sentPosts.push(mostRecentPost.guid || mostRecentPost.link);
+    console.log('✓ Email sent!');
     
     // Save updated sent posts
     await saveSentPosts(sentPosts);

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Brendan's Blog</title>
+    <style>
+      /* Reset styles for email clients */
+      body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+      table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+      img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+      
+      /* Responsive styles */
+      @media only screen and (max-width: 649px) {
+        .container { width: 100% !important; }
+        .content-padding { padding: 24px !important; }
+        .logo { width: 180px !important; max-width: 100% !important; }
+        .title { font-size: 20px !important; line-height: 26px !important; }
+        .body-text { font-size: 16px !important; line-height: 24px !important; }
+        .signoff-text { font-size: 16px !important; line-height: 24px !important; }
+        .footer-text { font-size: 14px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f9fafb; width:100% !important;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f9fafb; border-collapse:collapse;">
+      <tr>
+        <td align="center" style="padding:0;">
+
+          <!-- Outer Container -->
+          <table class="container" width="649" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#ffffff; border:1px solid #e5e7eb; max-width:649px; width:100%; border-collapse:collapse;">
+
+            <!-- Header / Logo -->
+            <tr>
+              <td class="content-padding" style="padding:32px; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; color:#000000;">
+                <img class="logo" src="https://blog.brendanbockes.com/logo.png"
+                     width="250"
+                     alt="Brendan's Blog"
+                     style="display:block; margin-bottom:8px; max-width:100%; height:auto;">
+
+                <a href="{{POST_LINK}}"
+                   style="color:#3b82f6; text-decoration:underline; font-size:16px; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; word-break:break-word;">
+                  View this post online
+                </a>
+
+                <hr style="margin-top:24px; border:none; border-top:1px solid #e5e7eb;">
+              </td>
+            </tr>
+
+            <!-- Content -->
+            <tr>
+              <td class="content-padding" style="padding:0 32px 32px 32px; color:#000000;">
+
+                <!-- Title -->
+                <h2 class="title" style="margin:0 0 24px 0; font-size:24px; line-height:30px; font-weight:700; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; word-wrap:break-word;">
+                  {{POST_TITLE}}
+                </h2>
+
+                <!-- Blog Content (Serif) - Full Post Content -->
+                <div class="body-text" style="margin:0 0 40px 0;
+                          font-size:18px;
+                          line-height:27px;
+                          font-family:Georgia, 'Times New Roman', Times, serif;
+                          color:#000000;
+                          word-wrap:break-word;">
+                  {{POST_CONTENT}}
+                </div>
+
+                <hr style="border:none; border-top:1px solid #e5e7eb; margin:40px 0 32px 0;">
+
+                <!-- Signoff -->
+                <p class="signoff-text" style="margin:0;
+                          font-size:18px;
+                          line-height:27px;
+                          font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;
+                          color:#000000;
+                          word-wrap:break-word;">
+                  <em>
+                    Hey there! Hope you enjoyed this post. If you have a question or comment,
+                    <a href="https://www.linkedin.com/in/brendanbockes"
+                       style="color:#3b82f6; text-decoration:underline; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
+                      feel free to reach out</a>. I reply to every email. – Brendan
+                  </em>
+                </p>
+
+              </td>
+            </tr>
+
+            <!-- Forward Section -->
+            <tr>
+              <td class="content-padding" style="background-color:#f8fafc;
+                         padding:32px;
+                         border-top:1px solid #e2e8f0;
+                         border-bottom:1px solid #e2e8f0;
+                         font-size:18px;
+                         line-height:27px;
+                         color:#000000;
+                         font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;
+                         word-wrap:break-word;">
+                Enjoyed this email?<br>
+                <a href="mailto:?subject=Thought%20you%20might%20enjoy%20this%20post&body=Hey!%0A%0AI%20thought%20you%20might%20enjoy%20this%20post%20from%20Brendan%20Bockes%E2%80%99%20blog:%0A%0A{{POST_TITLE_ENCODED}}%0A{{POST_LINK}}%0A%0ALet%20me%20know%20what%20you%20think!"
+                   style="color:#3b82f6; text-decoration:underline; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
+                   Forward it to a friend</a>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td class="content-padding footer-text" style="background-color:#f9fafb;
+                         padding:24px 32px;
+                         text-align:center;
+                         font-size:14px;
+                         color:#6b7280;
+                         font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
+                <p style="margin:0 0 8px 0;">Brendan's Blog</p>
+
+                <p style="margin:16px 0;">
+                  <a href="https://blog.brendanbockes.com"
+                     style="color:#3b82f6; text-decoration:none; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
+                    Website
+                  </a>
+                </p>
+
+                <p style="margin:16px 0 0 0; font-size:12px; color:#9ca3af;">
+                  You're receiving this email because you subscribed to Brendan's Blog.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+          <!-- End Outer Container -->
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
