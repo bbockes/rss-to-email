@@ -4,6 +4,8 @@
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
 import fs from 'fs/promises';
+import fetch from 'node-fetch';
+import * as cheerio from 'cheerio';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
 const SENT_POSTS_FILE = './sent-posts.json';
@@ -38,16 +40,49 @@ async function loadTemplate() {
   }
 }
 
+// Fetch full post content from the blog
+async function fetchPostContent(url) {
+  try {
+    console.log(`Fetching full content from: ${url}`);
+    const response = await fetch(url);
+    const html = await response.text();
+    
+    // Parse the HTML
+    const $ = cheerio.load(html);
+    
+    // Extract the article content - adjust selector if needed
+    // Common selectors: article, .post-content, .entry-content, main
+    const articleContent = $('article').html() || 
+                          $('.post-content').html() || 
+                          $('main').html() ||
+                          $('body').html();
+    
+    if (!articleContent) {
+      console.warn('Could not find article content, using snippet');
+      return null;
+    }
+    
+    return articleContent;
+  } catch (error) {
+    console.error('Error fetching post content:', error);
+    return null;
+  }
+}
+
 // Send email for a new post
 async function sendEmail(post) {
   // Load the template
   const template = await loadTemplate();
   
+  // Fetch full post content
+  const fullContent = await fetchPostContent(post.link);
+  const content = fullContent || post.contentSnippet || post.content || '';
+  
   // Replace placeholders with actual content
   const html = template
     .replace(/{{POST_TITLE}}/g, post.title)
     .replace(/{{POST_LINK}}/g, post.link)
-    .replace(/{{POST_CONTENT}}/g, post.content || post.contentSnippet || '')
+    .replace(/{{POST_CONTENT}}/g, content)
     .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title));
 
   const { data, error } = await resend.emails.send({
