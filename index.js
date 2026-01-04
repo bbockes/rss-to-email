@@ -4,8 +4,8 @@
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
 import fs from 'fs/promises';
-import fetch from 'node-fetch';
-import * as cheerio from 'cheerio';
+import { createClient } from '@sanity/client';
+import { toHTML } from '@portabletext/to-html';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
 const SENT_POSTS_FILE = './sent-posts.json';
@@ -13,6 +13,14 @@ const SENT_POSTS_FILE = './sent-posts.json';
 // Initialize
 const parser = new Parser();
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Initialize Sanity client
+const sanityClient = createClient({
+  projectId: 'wxzoc64y',
+  dataset: 'production',
+  useCdn: true,
+  apiVersion: '2024-01-01'
+});
 
 // Load previously sent post IDs
 async function loadSentPosts() {
@@ -40,31 +48,67 @@ async function loadTemplate() {
   }
 }
 
-// Fetch full post content from the blog
-async function fetchPostContent(url) {
+// Fetch full post content from Sanity
+async function fetchPostContentFromSanity(postUrl) {
   try {
-    console.log(`Fetching full content from: ${url}`);
-    const response = await fetch(url);
-    const html = await response.text();
+    console.log(`Fetching content from Sanity for: ${postUrl}`);
     
-    // Parse the HTML
-    const $ = cheerio.load(html);
-    
-    // Extract the article content - adjust selector if needed
-    // Common selectors: article, .post-content, .entry-content, main
-    const articleContent = $('article').html() || 
-                          $('.post-content').html() || 
-                          $('main').html() ||
-                          $('body').html();
-    
-    if (!articleContent) {
-      console.warn('Could not find article content, using snippet');
+    // Extract slug from URL
+    // URL format: https://blog.brendanbockes.com/posts/slug-name
+    const slug = postUrl.split('/posts/')[1];
+    if (!slug) {
+      console.error('Could not extract slug from URL:', postUrl);
       return null;
     }
     
-    return articleContent;
+    console.log('Looking for post with slug:', decodeURIComponent(slug));
+    
+    // Query Sanity for the post by slug
+    const query = `*[_type == "post" && slug.current == $slug][0]{
+      title,
+      body,
+      publishedAt
+    }`;
+    
+    const post = await sanityClient.fetch(query, { slug: decodeURIComponent(slug) });
+    
+    if (!post || !post.body) {
+      console.warn('Post not found or has no body content');
+      return null;
+    }
+    
+    console.log('✓ Found post in Sanity');
+    
+    // Convert Portable Text to HTML
+    const html = toHTML(post.body, {
+      components: {
+        marks: {
+          link: ({value, children}) => {
+            const href = value?.href || '';
+            return `<a href="${href}" style="color: #3b82f6; text-decoration: underline;">${children}</a>`;
+          }
+        },
+        block: {
+          normal: ({children}) => `<p style="margin: 0 0 1em 0;">${children}</p>`,
+          h1: ({children}) => `<h1 style="margin: 1.5em 0 0.5em 0; font-size: 2em; font-weight: 700;">${children}</h1>`,
+          h2: ({children}) => `<h2 style="margin: 1.5em 0 0.5em 0; font-size: 1.5em; font-weight: 700;">${children}</h2>`,
+          h3: ({children}) => `<h3 style="margin: 1.5em 0 0.5em 0; font-size: 1.25em; font-weight: 700;">${children}</h3>`,
+          blockquote: ({children}) => `<blockquote style="margin: 1.5em 0; padding-left: 1em; border-left: 3px solid #e5e7eb; color: #6b7280;">${children}</blockquote>`
+        },
+        list: {
+          bullet: ({children}) => `<ul style="margin: 1em 0; padding-left: 2em;">${children}</ul>`,
+          number: ({children}) => `<ol style="margin: 1em 0; padding-left: 2em;">${children}</ol>`
+        },
+        listItem: {
+          bullet: ({children}) => `<li style="margin: 0.25em 0;">${children}</li>`,
+          number: ({children}) => `<li style="margin: 0.25em 0;">${children}</li>`
+        }
+      }
+    });
+    
+    return html;
   } catch (error) {
-    console.error('Error fetching post content:', error);
+    console.error('Error fetching from Sanity:', error);
     return null;
   }
 }
@@ -74,8 +118,8 @@ async function sendEmail(post) {
   // Load the template
   const template = await loadTemplate();
   
-  // Fetch full post content
-  const fullContent = await fetchPostContent(post.link);
+  // Fetch full post content from Sanity
+  const fullContent = await fetchPostContentFromSanity(post.link);
   const content = fullContent || post.contentSnippet || post.content || '';
   
   // Replace placeholders with actual content
