@@ -1,13 +1,11 @@
 // RSS to Email Service using Resend Broadcasts
 // File: index.js
-// Updated v25
 
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
 import fs from 'fs/promises';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
-const SENT_POSTS_FILE = './sent-posts.json';
 
 // Initialize
 const parser = new Parser();
@@ -113,29 +111,34 @@ async function checkFeedAndSend() {
     // Parse the feed
     const feed = await parser.parseURL(RSS_FEED_URL);
     
-    // Load sent posts
-    const sentPosts = await loadSentPosts();
+    // Get the most recent post
+    const mostRecentPost = feed.items[0];
     
-    // Check for new posts
-    const newPosts = feed.items.filter(item => !sentPosts.includes(item.guid || item.link));
-    
-    if (newPosts.length === 0) {
-      console.log('No new posts found.');
+    if (!mostRecentPost) {
+      console.log('No posts found in feed.');
       return;
     }
     
-    // Only send the most recent post
-    const mostRecentPost = newPosts[0];
+    console.log(`Most recent post: ${mostRecentPost.title}`);
+    console.log(`Published: ${mostRecentPost.pubDate}`);
     
-    console.log(`Found ${newPosts.length} new post(s). Sending only the most recent.`);
-    console.log(`Sending email for: ${mostRecentPost.title}`);
+    // Check if the post was published in the last 24 hours
+    const postDate = new Date(mostRecentPost.pubDate);
+    const now = new Date();
+    const hoursSincePublished = (now - postDate) / (1000 * 60 * 60);
+    
+    console.log(`Hours since published: ${hoursSincePublished.toFixed(1)}`);
+    
+    // Only send if published within last 24 hours
+    if (hoursSincePublished > 24) {
+      console.log('Post is older than 24 hours. Skipping.');
+      return;
+    }
+    
+    console.log('Post is fresh! Sending email...');
     
     await sendEmailBroadcast(mostRecentPost);
-    sentPosts.push(mostRecentPost.guid || mostRecentPost.link);
     console.log('✓ Broadcast sent!');
-    
-    // Save updated sent posts
-    await saveSentPosts(sentPosts);
     console.log('Done!');
     
   } catch (error) {
