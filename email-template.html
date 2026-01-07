@@ -34,10 +34,10 @@
             <!-- Header / Logo -->
             <tr>
               <td class="content-padding" style="padding:32px; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; color:#000000;">
-                <img class="logo" src="https://blog.brendanbockes.com/images/logo.png"
-                     width="200"
+                <img class="logo" src="https://blog.brendanbockes.com/logo.png"
+                     width="250"
                      alt="Brendan's Blog"
-                     style="display:block; margin-bottom:8px; width:200px; height:auto; max-width:100%;">
+                     style="display:block; margin-bottom:8px; max-width:100%; height:auto;">
 
                 <a href="{{POST_LINK}}"
                    style="color:#3b82f6; text-decoration:underline; font-size:16px; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; word-break:break-word;">
@@ -99,7 +99,7 @@
                          font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;
                          word-wrap:break-word;">
                 Enjoyed this email? → 
-                <a href="mailto:?subject=Thought%20you%20might%20enjoy%20this%20post&body=Hey!%0A%0AI%20thought%20you%20might%20enjoy%20this%20post%20from%20Brendan%20Bockes%E2%80%99%20blog:%0A%0A{{POST_TITLE_ENCODED}}%0A{{POST_LINK}}%0A%0ALet%20me%20know%20what%20you%20think!"
+                <a href="mailto:?subject={{POST_TITLE_ENCODED}}&body=Hey!%0A%0AI%20thought%20you%20might%20enjoy%20this%20post%20from%20Brendan's%20Blog%3A%0A%0A{{POST_LINK}}%0A%0ALet%20me%20know%20what%20you%20think!"
                    style="color:#3b82f6; text-decoration:underline; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
                    Forward it to a friend</a>
               </td>
@@ -113,17 +113,22 @@
                          font-size:14px;
                          color:#6b7280;
                          font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
-                <p style="margin:0 0 8px 0;">Brendan's Blog</p>
-
-                <p style="margin:16px 0;">
+                <p style="margin:0 0 8px 0;">
                   <a href="https://blog.brendanbockes.com"
-                     style="color:#3b82f6; text-decoration:none; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
-                    Website
+                     style="color:#6b7280; text-decoration:none; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif;">
+                    Brendan's Blog
                   </a>
                 </p>
 
-                <p style="margin:16px 0 0 0; font-size:12px; color:#9ca3af;">
+                <p style="margin:16px 0 8px 0; font-size:12px; color:#9ca3af;">
                   You're receiving this email because you subscribed to Brendan's Blog.
+                </p>
+
+                <p style="margin:8px 0 0 0;">
+                  <a href="{{unsubscribe}}"
+                     style="color:#6b7280; text-decoration:underline; font-family:Avenir, 'Avenir Next', Helvetica, Arial, sans-serif; font-size:12px;">
+                    Unsubscribe
+                  </a>
                 </p>
               </td>
             </tr>
