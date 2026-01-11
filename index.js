@@ -85,12 +85,21 @@ async function sendEmailBroadcast(post) {
   // Use content:encoded first (full content), then fallback to content, then snippet
   const fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
   
+  // Extract preview text (first ~150 chars, strip HTML tags)
+  const previewText = fullContent
+    .replace(/<[^>]*>/g, '') // Strip HTML tags
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim()
+    .substring(0, 150) // Limit to 150 characters
+    + (fullContent.length > 150 ? '...' : ''); // Add ellipsis if truncated
+  
   // Replace placeholders with actual content
   const html = template
     .replace(/{{POST_TITLE}}/g, post.title)
     .replace(/{{POST_LINK}}/g, post.link)
     .replace(/{{POST_CONTENT}}/g, fullContent)
-    .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title));
+    .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title))
+    .replace(/{{PREVIEW_TEXT}}/g, previewText);
 
   console.log('Creating broadcast for audience...');
 

@@ -209,6 +209,44 @@ This will:
 3. Click "Trigger Job" to run it manually
 4. Check the logs to see the output
 
+## Resending Old Posts
+
+### Important: One Post Per Day Rule
+
+This system **only sends the most recent post** from your RSS feed each day. This means you can strategically reschedule old posts to resend them as emails.
+
+### How to Resend an Old Post
+
+1. **Remove from Supabase Database**
+   - Go to Supabase Table Editor
+   - Find the post in the `sent_posts` table
+   - Delete that row
+
+2. **Update the Publish Date**
+   - In your blog CMS, change the post's publish date to a future date
+   - The post will appear as the "most recent" in your RSS feed
+
+3. **Wait for the Scheduled Run**
+   - At 8:00 AM EST, the cron job runs
+   - It sees your rescheduled post as the most recent
+   - Checks Supabase (entry deleted, so it's "new")
+   - Sends it to your subscribers
+
+### Smart Content Strategy
+
+You can use this to:
+- **Resurface evergreen content** - Send your best posts again to new subscribers
+- **Drip old content** - Schedule one post per day over several weeks
+- **Reach new audiences** - People who joined recently never saw your older posts
+- **Correct mistakes** - Fix typos and resend with updated publish date
+
+**Example Schedule:**
+- Jan 12: Old post A (reschedule date to Jan 12, remove from DB)
+- Jan 13: Old post B (reschedule date to Jan 13, remove from DB)
+- Jan 14: Old post C (reschedule date to Jan 14, remove from DB)
+
+Each day at 8 AM, the system sends whichever post is "most recent" by publish date.
+
 ## Troubleshooting
 
 ### "No posts found in feed"
