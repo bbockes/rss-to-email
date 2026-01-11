@@ -1,11 +1,13 @@
 // RSS to Email Service using Resend Broadcasts
 // File: index.js
 
+import 'dotenv/config';
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
 import fs from 'fs/promises';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
+const SENT_POSTS_FILE = './sent-posts.json';
 
 // Initialize
 const parser = new Parser();
@@ -108,6 +110,10 @@ async function checkFeedAndSend() {
   try {
     console.log('Checking RSS feed...');
     
+    // Load previously sent posts
+    const sentPosts = await loadSentPosts();
+    console.log(`Previously sent ${sentPosts.length} posts`);
+    
     // Parse the feed
     const feed = await parser.parseURL(RSS_FEED_URL);
     
@@ -122,23 +128,24 @@ async function checkFeedAndSend() {
     console.log(`Most recent post: ${mostRecentPost.title}`);
     console.log(`Published: ${mostRecentPost.pubDate}`);
     
-    // Check if the post was published in the last 24 hours
-    const postDate = new Date(mostRecentPost.pubDate);
-    const now = new Date();
-    const hoursSincePublished = (now - postDate) / (1000 * 60 * 60);
+    // Use the post link as a unique identifier
+    const postId = mostRecentPost.link;
     
-    console.log(`Hours since published: ${hoursSincePublished.toFixed(1)}`);
-    
-    // Only send if published within last 24 hours
-    if (hoursSincePublished > 24) {
-      console.log('Post is older than 24 hours. Skipping.');
+    // Check if we've already sent this post
+    if (sentPosts.includes(postId)) {
+      console.log('This post has already been sent. Skipping.');
       return;
     }
     
-    console.log('Post is fresh! Sending email...');
+    console.log('New post detected! Sending email...');
     
     await sendEmailBroadcast(mostRecentPost);
-    console.log('✓ Broadcast sent!');
+    
+    // Mark this post as sent
+    sentPosts.push(postId);
+    await saveSentPosts(sentPosts);
+    
+    console.log('✓ Broadcast sent and recorded!');
     console.log('Done!');
     
   } catch (error) {
