@@ -4,29 +4,67 @@
 import 'dotenv/config';
 import Parser from 'rss-parser';
 import { Resend } from 'resend';
+import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
-const SENT_POSTS_FILE = './sent-posts.json';
 
 // Initialize
 const parser = new Parser();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Load previously sent post IDs
-async function loadSentPosts() {
-  try {
-    const data = await fs.readFile(SENT_POSTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    // File doesn't exist yet, return empty array
-    return [];
+// Initialize Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
+// Check if a post has been sent
+async function isPostSent(postUrl) {
+  const { data, error } = await supabase
+    .from('sent_posts')
+    .select('post_url')
+    .eq('post_url', postUrl)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') { // PGRST116 = not found (which is ok)
+    console.error('Error checking sent posts:', error);
+    throw error;
+  }
+  
+  return !!data; // Returns true if post exists
+}
+
+// Mark a post as sent
+async function markPostAsSent(postUrl, postTitle) {
+  const { error } = await supabase
+    .from('sent_posts')
+    .insert([
+      { 
+        post_url: postUrl,
+        post_title: postTitle,
+        sent_at: new Date().toISOString()
+      }
+    ]);
+  
+  if (error) {
+    console.error('Error saving sent post:', error);
+    throw error;
   }
 }
 
-// Save sent post IDs
-async function saveSentPosts(sentPosts) {
-  await fs.writeFile(SENT_POSTS_FILE, JSON.stringify(sentPosts, null, 2));
+// Get count of sent posts
+async function getSentPostsCount() {
+  const { count, error } = await supabase
+    .from('sent_posts')
+    .select('*', { count: 'exact', head: true });
+  
+  if (error) {
+    console.error('Error getting sent posts count:', error);
+    return 0;
+  }
+  
+  return count || 0;
 }
 
 // Load email template
@@ -110,9 +148,9 @@ async function checkFeedAndSend() {
   try {
     console.log('Checking RSS feed...');
     
-    // Load previously sent posts
-    const sentPosts = await loadSentPosts();
-    console.log(`Previously sent ${sentPosts.length} posts`);
+    // Get count of previously sent posts
+    const sentCount = await getSentPostsCount();
+    console.log(`Previously sent ${sentCount} posts`);
     
     // Parse the feed
     const feed = await parser.parseURL(RSS_FEED_URL);
@@ -129,10 +167,12 @@ async function checkFeedAndSend() {
     console.log(`Published: ${mostRecentPost.pubDate}`);
     
     // Use the post link as a unique identifier
-    const postId = mostRecentPost.link;
+    const postUrl = mostRecentPost.link;
     
     // Check if we've already sent this post
-    if (sentPosts.includes(postId)) {
+    const alreadySent = await isPostSent(postUrl);
+    
+    if (alreadySent) {
       console.log('This post has already been sent. Skipping.');
       return;
     }
@@ -141,9 +181,8 @@ async function checkFeedAndSend() {
     
     await sendEmailBroadcast(mostRecentPost);
     
-    // Mark this post as sent
-    sentPosts.push(postId);
-    await saveSentPosts(sentPosts);
+    // Mark this post as sent in the database
+    await markPostAsSent(postUrl, mostRecentPost.title);
     
     console.log('✓ Broadcast sent and recorded!');
     console.log('Done!');
