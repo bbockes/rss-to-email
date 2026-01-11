@@ -128,7 +128,7 @@ async function sendEmailBroadcast(post) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      scheduled_at: 'in 30 sec'
+      scheduled_at: new Date(Date.now() + 30000).toISOString()
     })
   });
 
