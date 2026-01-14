@@ -10,17 +10,43 @@ This project monitors your blog's RSS feed and automatically emails your newest 
 
 Think of this as a friendly robot that:
 
-1. **Wakes up every morning at 8 AM** (via Render's scheduled job)
-2. **Checks your blog** for new posts (reads your RSS feed)
-3. **Remembers what it already sent** (using a Supabase database)
-4. **Sends new posts to subscribers** (via Resend broadcast)
-5. **Goes back to sleep** until tomorrow
+1. **You publish in Sanity** - Write and publish your blog post
+2. **Sanity triggers Netlify** - Webhook automatically rebuilds your blog (via Netlify)
+3. **RSS feed updates** - Your blog's RSS feed gets the new post
+4. **Robot wakes up every morning at 5 AM** (via Render's scheduled job)
+5. **Checks your blog** for new posts (reads your RSS feed)
+6. **Remembers what it already sent** (using a Supabase database)
+7. **Sends new posts to subscribers** (via Resend broadcast)
+8. **Goes back to sleep** until tomorrow
 
 ### Visual Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Every Day at 8:00 AM EST                │
+│              You Publish a Post in Sanity (3 AM)            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────────┐
+                    │  Sanity Webhook      │
+                    │  Triggers Netlify    │
+                    └──────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────────┐
+                    │  Netlify Rebuilds    │
+                    │  Your Blog (~2 min)  │
+                    └──────────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────────┐
+                    │  RSS Feed Updates    │
+                    │  with New Post       │
+                    └──────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Every Day at 5:00 AM EST                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -73,6 +99,8 @@ Think of this as a friendly robot that:
 
 ### Services Used
 
+- **[Sanity](https://sanity.io)** - Headless CMS for managing blog content
+- **[Netlify](https://netlify.com)** - Hosts the blog frontend and handles automatic rebuilds
 - **[Render](https://render.com)** - Runs the scheduled job every morning (Cron Job)
 - **[Resend](https://resend.com)** - Email service that sends broadcasts to your audience
 - **[Supabase](https://supabase.com)** - PostgreSQL database that remembers which posts have been sent
@@ -117,39 +145,42 @@ A beautiful, responsive email template that displays your blog post with:
 
 ### Cron Schedule
 
-The job runs at **8:00 AM EST** every day using this cron expression:
+The job runs at **5:00 AM EST** every day using this cron expression:
 
 ```
-0 13 * * *
+0 10 * * *
 ```
 
 This means:
 - `0` = Minute 0 (top of the hour)
-- `13` = Hour 13 (1 PM UTC = 8 AM EST)
+- `10` = Hour 10 (10 AM UTC = 5 AM EST)
 - `* * *` = Every day, every month, every day of the week
 
-**Note:** Render uses UTC time, so 8 AM EST = 1 PM UTC (or 10 AM UTC during daylight saving time)
+**Note:** Render uses UTC time, so 5 AM EST = 10 AM UTC (or adjust during daylight saving time)
 
 ### Typical Publishing Flow
 
 **Your workflow:**
-1. Write a blog post (anytime)
+1. Write a blog post in Sanity Studio (anytime)
 2. Schedule it to publish at **3:00 AM EST**
 3. Go to sleep 😴
 
 **What happens automatically:**
-1. **3:00 AM** - Your blog post goes live
-2. **8:00 AM** - This script runs, detects the new post, and sends it to subscribers
-3. **8:00:30 AM** - Subscribers receive your post in their inbox ✉️
+1. **3:00 AM** - Your blog post publishes in Sanity
+2. **3:00:30 AM** - Sanity webhook triggers Netlify rebuild
+3. **3:05 AM** - Netlify finishes rebuilding, RSS feed updates with new post
+4. **5:00 AM** - This script runs, detects the new post, and sends it to subscribers
+5. **5:00:30 AM** - Subscribers receive your post in their inbox ✉️
 
 ## Setup Instructions
 
 ### Prerequisites
 
-1. A blog with an RSS feed
-2. A Resend account with an audience set up
-3. A Supabase account (free tier works great)
-4. A Render account (free tier works great)
+1. A blog with Sanity (headless CMS) hosted on Netlify
+2. An RSS feed at your blog (e.g., `/feed.xml`)
+3. A Resend account with an audience set up
+4. A Supabase account (free tier works great)
+5. A Render account (free tier works great)
 
 ### Environment Variables
 
@@ -179,6 +210,53 @@ CREATE INDEX idx_sent_posts_url ON sent_posts(post_url);
 CREATE INDEX idx_sent_posts_sent_at ON sent_posts(sent_at DESC);
 ```
 
+### Sanity Webhook Setup (Critical!)
+
+**Why this is needed:** Your blog uses Sanity (headless CMS) + Netlify (static hosting). When you publish a post in Sanity, Netlify needs to rebuild your site to generate an updated RSS feed. Without this webhook, the RSS feed won't update and emails won't send!
+
+#### Step 1: Create a Deploy Hook in Netlify
+
+1. Go to your Netlify dashboard at `https://app.netlify.com`
+2. Click on your blog site
+3. Go to **Site configuration** (or **Site settings**)
+4. In the left sidebar, click **Build & deploy**
+5. Scroll down to **Build hooks**
+6. Click **Add build hook**
+7. Fill in:
+   - **Build hook name**: "Sanity Publish"
+   - **Branch to build**: `main` (or whatever your production branch is)
+8. Click **Save**
+9. **Copy the webhook URL** - it looks like:
+   ```
+   https://api.netlify.com/build_hooks/[some-long-id]
+   ```
+
+#### Step 2: Add the Webhook to Sanity
+
+1. Go to `https://sanity.io/manage`
+2. Select your blog project
+3. Click **API** in the left sidebar
+4. Click **Webhooks**
+5. Click **Create webhook**
+6. Fill in:
+   - **Name**: "Netlify Deploy on Publish"
+   - **URL**: Paste your Netlify webhook URL from Step 1
+   - **Dataset**: `production` (or your dataset name)
+   - **Trigger on**: Check ✅ Create, ✅ Update, ✅ Delete
+   - **Filter** (optional): `_type == "post"` (only trigger on blog posts)
+   - **HTTP method**: POST
+7. Click **Save**
+
+#### Step 3: Test It
+
+1. Go to Sanity Studio
+2. Make a small edit to any blog post
+3. Click **Publish**
+4. Go to Netlify dashboard → **Deploys** tab
+5. You should see a new deploy start within seconds!
+
+✅ **Now your blog will automatically rebuild whenever you publish, ensuring the RSS feed is always up to date.**
+
 ### Render Configuration
 
 **Service Type:** Cron Job
@@ -187,7 +265,7 @@ CREATE INDEX idx_sent_posts_sent_at ON sent_posts(sent_at DESC);
 
 **Start Command:** `npm start`
 
-**Schedule:** `0 13 * * *` (8:00 AM EST)
+**Schedule:** `0 10 * * *` (5:00 AM EST)
 
 ## Testing
 
@@ -265,10 +343,24 @@ Each day at 8 AM, the system sends whichever post is "most recent" by publish da
 - This shouldn't happen with Supabase (persistent storage)
 - Check that your environment variables are set correctly in Render
 
+### "This post has already been sent" but my new post didn't send
+- This means your RSS feed isn't updating with new posts
+- **Check the Sanity webhook**: Go to Sanity → API → Webhooks and verify it's set up
+- **Check Netlify deploys**: Go to Netlify → Deploys and see if rebuilds are triggering when you publish
+- **Manual fix**: Trigger a manual deploy in Netlify, then manually trigger the Render cron job
+
+### Post published but not in RSS feed
+- Your Sanity webhook might not be working
+- Check Netlify → Deploys to see if a build was triggered
+- Manually trigger a rebuild in Netlify
+- Verify the webhook URL is correct in Sanity
+
 ## Cost
 
 **Free tier is sufficient for everything:**
 
+- ✅ **Sanity** - Free tier: 3 users, unlimited documents
+- ✅ **Netlify** - Free tier: 300 build minutes/month, 100 GB bandwidth
 - ✅ **Render Cron Job** - Free (750 hours/month)
 - ✅ **Supabase** - Free (500 MB database, plenty for thousands of posts)
 - ✅ **Resend** - Free tier: 3,000 emails/month, 100 emails/day
