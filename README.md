@@ -4,33 +4,42 @@ Automatically send your latest blog posts to your email subscribers every mornin
 
 ## What This Does
 
-This project monitors your blog's RSS feed and automatically emails your newest post to all your subscribers. It runs every morning at 8:00 AM EST, checks if you've published anything new, and sends it out if you have.
+This project monitors your blog's RSS feed and automatically emails your newest post to all your subscribers. It runs every morning at 5:00 AM EST, checks if you've published anything new, and sends it out if you have. A separate 4 AM cron job ensures your blog rebuilds daily to catch any scheduled posts.
 
 ## How It Works (Simple Explanation)
 
 Think of this as a friendly robot that:
 
-1. **You publish in Sanity** - Write and publish your blog post
-2. **Sanity triggers Netlify** - Webhook automatically rebuilds your blog (via Netlify)
-3. **RSS feed updates** - Your blog's RSS feed gets the new post
-4. **Robot wakes up every morning at 5 AM** (via Render's scheduled job)
-5. **Checks your blog** for new posts (reads your RSS feed)
-6. **Remembers what it already sent** (using a Supabase database)
-7. **Sends new posts to subscribers** (via Resend broadcast)
-8. **Goes back to sleep** until tomorrow
+1. **You schedule posts in Sanity** - Write and schedule your blog post for 3:00 AM EST
+2. **Post publishes at 3 AM** - Sanity automatically publishes it
+3. **Netlify rebuild at 4 AM** - Scheduled cron job triggers Netlify to rebuild your blog
+4. **RSS feed updates** - Your blog's RSS feed gets the new post
+5. **Robot wakes up at 5 AM** - Render's email cron job runs
+6. **Checks your blog** for new posts (reads your RSS feed)
+7. **Remembers what it already sent** (using a Supabase database)
+8. **Sends new posts to subscribers** (via Resend broadcast)
+9. **Goes back to sleep** until tomorrow
+
+**Note:** Scheduled publishes in Sanity don't trigger webhooks automatically, so we use a daily 4 AM cron job to ensure Netlify rebuilds your site before the 5 AM email send.
 
 ### Visual Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              You Publish a Post in Sanity (3 AM)            │
+│         You Schedule a Post in Sanity for 3:00 AM          │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-                    ┌──────────────────────┐
-                    │  Sanity Webhook      │
-                    │  Triggers Netlify    │
-                    └──────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    3:00 AM - Post Publishes                 │
+│              (Sanity scheduled publish runs)                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  4:00 AM - Netlify Rebuild                  │
+│              (Render Cron Job triggers Netlify)             │
+└─────────────────────────────────────────────────────────────┘
                               │
                               ▼
                     ┌──────────────────────┐
@@ -46,14 +55,9 @@ Think of this as a friendly robot that:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Every Day at 5:00 AM EST                │
+│                  5:00 AM - Email Send Job                   │
+│              (Render Cron Job runs index.js)                │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │  Render Cron Job │
-                    │  runs index.js   │
-                    └──────────────────┘
                               │
                               ▼
         ┌─────────────────────────────────────────┐
@@ -143,34 +147,44 @@ A beautiful, responsive email template that displays your blog post with:
 
 ## How the Scheduling Works
 
-### Cron Schedule
+### Cron Schedules
 
-The job runs at **5:00 AM EST** every day using this cron expression:
+There are **two** scheduled jobs that run every morning:
 
+**1. Netlify Build Trigger - 4:00 AM EST**
+```
+0 9 * * *
+```
+This triggers Netlify to rebuild your blog, which updates the RSS feed with any scheduled posts.
+
+**2. Email Send Job - 5:00 AM EST**
 ```
 0 10 * * *
 ```
+This checks the RSS feed for new posts and sends them to subscribers.
 
-This means:
+**Cron expression breakdown:**
 - `0` = Minute 0 (top of the hour)
-- `10` = Hour 10 (10 AM UTC = 5 AM EST)
+- `9` or `10` = Hour in UTC (9 AM UTC = 4 AM EST, 10 AM UTC = 5 AM EST)
 - `* * *` = Every day, every month, every day of the week
 
-**Note:** Render uses UTC time, so 5 AM EST = 10 AM UTC (or adjust during daylight saving time)
+**Note:** Render uses UTC time. Adjust for daylight saving time if needed (EST is UTC-5, EDT is UTC-4).
 
 ### Typical Publishing Flow
 
 **Your workflow:**
 1. Write a blog post in Sanity Studio (anytime)
-2. Schedule it to publish at **3:00 AM EST**
+2. Schedule it to publish at **3:00 AM EST** (this is now the default for new posts!)
 3. Go to sleep 😴
 
 **What happens automatically:**
-1. **3:00 AM** - Your blog post publishes in Sanity
-2. **3:00:30 AM** - Sanity webhook triggers Netlify rebuild
-3. **3:05 AM** - Netlify finishes rebuilding, RSS feed updates with new post
-4. **5:00 AM** - This script runs, detects the new post, and sends it to subscribers
+1. **3:00 AM** - Your blog post publishes in Sanity (scheduled publish)
+2. **4:00 AM** - Netlify rebuild cron job triggers a deploy
+3. **4:02 AM** - Netlify finishes rebuilding, RSS feed updates with new post
+4. **5:00 AM** - Email cron job runs, detects the new post, and sends it to subscribers
 5. **5:00:30 AM** - Subscribers receive your post in their inbox ✉️
+
+**Why the 4 AM rebuild?** Scheduled publishes in Sanity don't automatically trigger webhooks. The 4 AM cron job ensures your site rebuilds daily to catch any scheduled posts that published earlier that morning.
 
 ## Setup Instructions
 
@@ -180,7 +194,7 @@ This means:
 2. An RSS feed at your blog (e.g., `/feed.xml`)
 3. A Resend account with an audience set up
 4. A Supabase account (free tier works great)
-5. A Render account (free tier works great)
+5. A Render account (free tier works great) - you'll create **two** cron jobs
 
 ### Environment Variables
 
@@ -210,9 +224,11 @@ CREATE INDEX idx_sent_posts_url ON sent_posts(post_url);
 CREATE INDEX idx_sent_posts_sent_at ON sent_posts(sent_at DESC);
 ```
 
-### Sanity Webhook Setup (Critical!)
+### Sanity Webhook Setup (Optional but Recommended)
 
-**Why this is needed:** Your blog uses Sanity (headless CMS) + Netlify (static hosting). When you publish a post in Sanity, Netlify needs to rebuild your site to generate an updated RSS feed. Without this webhook, the RSS feed won't update and emails won't send!
+**What this does:** When you manually publish a post in Sanity, this webhook immediately triggers Netlify to rebuild your site and update the RSS feed.
+
+**Important Note:** Scheduled publishes in Sanity don't trigger webhooks. That's why we use the 4 AM Netlify rebuild cron job - it catches any scheduled posts that published at 3 AM. However, setting up this webhook is still useful for when you manually publish posts outside of the scheduled time.
 
 #### Step 1: Create a Deploy Hook in Netlify
 
@@ -255,17 +271,77 @@ CREATE INDEX idx_sent_posts_sent_at ON sent_posts(sent_at DESC);
 4. Go to Netlify dashboard → **Deploys** tab
 5. You should see a new deploy start within seconds!
 
-✅ **Now your blog will automatically rebuild whenever you publish, ensuring the RSS feed is always up to date.**
+✅ **Now your blog will automatically rebuild whenever you manually publish, ensuring the RSS feed is always up to date.**
+
+### Sanity Schema Configuration (Default 3 AM Publish Time)
+
+To make scheduling easier, you can configure your Sanity post schema to automatically default new posts to 3:00 AM EST.
+
+In your Sanity Studio project (typically in `studio-[yourproject]/schemaTypes/postType.ts`), update the `publishedAt` field:
+
+```typescript
+defineField({
+  name: 'publishedAt',
+  title: 'Published at',
+  type: 'datetime',
+  initialValue: () => {
+    const now = new Date();
+    // Set to 3:00 AM in local timezone
+    const threeAM = new Date(now);
+    threeAM.setHours(3, 0, 0, 0);
+    
+    // If it's already past 3 AM today, default to 3 AM tomorrow
+    if (now > threeAM) {
+      threeAM.setDate(threeAM.getDate() + 1);
+    }
+    
+    return threeAM.toISOString();
+  },
+  validation: (rule) => rule.required(),
+}),
+```
+
+After making this change, deploy your Sanity Studio:
+
+```bash
+cd studio-[yourproject]
+npm run build
+npm run deploy
+```
+
+Now when you create a new post, it will automatically default to 3:00 AM (today if it's before 3 AM, or tomorrow if it's after 3 AM).
 
 ### Render Configuration
 
+You need **two** Render Cron Jobs:
+
+#### Job 1: Netlify Build Trigger (4:00 AM EST)
+
 **Service Type:** Cron Job
+
+**Name:** Netlify Build Trigger
+
+**Build Command:** `npm install`
+
+**Start Command:** `curl -X POST -d {} https://api.netlify.com/build_hooks/[your-webhook-id]`
+
+**Schedule:** `0 9 * * *` (4:00 AM EST = 9:00 AM UTC)
+
+**Purpose:** Triggers Netlify to rebuild your blog, which updates the RSS feed with any posts that were scheduled to publish earlier that morning.
+
+#### Job 2: Email Send Job (5:00 AM EST)
+
+**Service Type:** Cron Job
+
+**Name:** RSS to Email
 
 **Build Command:** `npm install`
 
 **Start Command:** `npm start`
 
-**Schedule:** `0 10 * * *` (5:00 AM EST)
+**Schedule:** `0 10 * * *` (5:00 AM EST = 10:00 AM UTC)
+
+**Purpose:** Checks the RSS feed for new posts and sends them to subscribers via Resend.
 
 ## Testing
 
@@ -305,7 +381,8 @@ This system **only sends the most recent post** from your RSS feed each day. Thi
    - The post will appear as the "most recent" in your RSS feed
 
 3. **Wait for the Scheduled Run**
-   - At 8:00 AM EST, the cron job runs
+   - At 4:00 AM EST, Netlify rebuilds (updating RSS feed)
+   - At 5:00 AM EST, the email cron job runs
    - It sees your rescheduled post as the most recent
    - Checks Supabase (entry deleted, so it's "new")
    - Sends it to your subscribers
@@ -323,7 +400,7 @@ You can use this to:
 - Jan 13: Old post B (reschedule date to Jan 13, remove from DB)
 - Jan 14: Old post C (reschedule date to Jan 14, remove from DB)
 
-Each day at 8 AM, the system sends whichever post is "most recent" by publish date.
+Each day at 5 AM, the system sends whichever post is "most recent" by publish date.
 
 ## Troubleshooting
 
@@ -345,15 +422,21 @@ Each day at 8 AM, the system sends whichever post is "most recent" by publish da
 
 ### "This post has already been sent" but my new post didn't send
 - This means your RSS feed isn't updating with new posts
-- **Check the Sanity webhook**: Go to Sanity → API → Webhooks and verify it's set up
-- **Check Netlify deploys**: Go to Netlify → Deploys and see if rebuilds are triggering when you publish
-- **Manual fix**: Trigger a manual deploy in Netlify, then manually trigger the Render cron job
+- **Check the 4 AM Netlify rebuild cron**: Go to Render → Netlify Build Trigger cron job and verify it ran at 4 AM
+- **Check Netlify deploys**: Go to Netlify → Deploys and see if a rebuild was triggered at 4 AM
+- **Manual fix**: Manually trigger the Netlify Build Trigger cron job in Render, wait 2 minutes, then manually trigger the Email Send cron job
 
 ### Post published but not in RSS feed
-- Your Sanity webhook might not be working
-- Check Netlify → Deploys to see if a build was triggered
-- Manually trigger a rebuild in Netlify
-- Verify the webhook URL is correct in Sanity
+- The 4 AM Netlify rebuild cron might not be working
+- Check Render → Netlify Build Trigger job logs to see if it ran successfully
+- Check Netlify → Deploys to see if a build was triggered at 4 AM
+- Manually trigger the Netlify Build Trigger cron job to force a rebuild
+- Verify the webhook URL in the cron job command is correct
+
+### Scheduled post didn't trigger Netlify rebuild
+- This is expected! Scheduled publishes in Sanity don't trigger webhooks
+- The 4 AM cron job is designed to handle this by rebuilding daily
+- Make sure your posts are scheduled for 3 AM (or earlier) so the 4 AM rebuild catches them
 
 ## Cost
 
