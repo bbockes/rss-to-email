@@ -77,13 +77,61 @@ async function loadTemplate() {
   }
 }
 
+// Process HTML content to ensure links are properly styled for email clients
+function processLinksForEmail(htmlContent) {
+  if (!htmlContent) return '';
+  
+  // Match all <a> tags, including those with existing attributes
+  // This regex handles: <a>, <a href="...">, <a class="..." href="...">, etc.
+  return htmlContent.replace(
+    /<a\s*([^>]*?)>/gi,
+    (match, attributes) => {
+      // Trim attributes and handle empty case
+      attributes = attributes.trim();
+      
+      // Check if style attribute already exists
+      const styleMatch = attributes.match(/style\s*=\s*["']([^"']*?)["']/i);
+      
+      if (styleMatch) {
+        // If style exists, merge our link styles with existing ones
+        const existingStyles = styleMatch[1];
+        
+        // Check if color or text-decoration is already set
+        const hasColor = /color\s*:/i.test(existingStyles);
+        const hasTextDecoration = /text-decoration\s*:/i.test(existingStyles);
+        
+        let newStyles = existingStyles.trim();
+        if (!hasColor) {
+          newStyles += (newStyles ? ' ' : '') + 'color:#3b82f6;';
+        }
+        if (!hasTextDecoration) {
+          newStyles += (newStyles ? ' ' : '') + 'text-decoration:underline;';
+        }
+        
+        // Replace the style attribute with the updated one
+        return match.replace(
+          /style\s*=\s*["'][^"']*?["']/i,
+          `style="${newStyles}"`
+        );
+      } else {
+        // If no style attribute, add one with email-compatible link styles
+        // Preserve existing attributes and add style
+        return `<a${attributes ? ' ' + attributes + ' ' : ' '}style="color:#3b82f6; text-decoration:underline;">`;
+      }
+    }
+  );
+}
+
 // Send email as a broadcast to audience
 async function sendEmailBroadcast(post) {
   // Load the template
   const template = await loadTemplate();
   
   // Use content:encoded first (full content), then fallback to content, then snippet
-  const fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
+  let fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
+  
+  // Process links to ensure they're properly styled for email clients
+  fullContent = processLinksForEmail(fullContent);
   
   // Extract preview text (first ~150 chars, strip HTML tags)
   const previewText = fullContent
