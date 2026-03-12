@@ -169,7 +169,7 @@ async function sendEmailBroadcast(post) {
   // Replace placeholders with actual content
   const html = template
     .replace(/{{POST_TITLE}}/g, post.title)
-    .replace(/{{POST_LINK}}/g, post.link)
+    .replace(/{{POST_LINK}}/g, post.link.replace(/%20/gi, '-'))
     .replace(/{{POST_CONTENT}}/g, fullContent)
     .replace(/{{POST_TITLE_ENCODED}}/g, encodeURIComponent(post.title))
     .replace(/{{PREVIEW_TEXT}}/g, previewText);
@@ -248,8 +248,8 @@ async function checkFeedAndSend() {
     console.log(`Most recent post: ${mostRecentPost.title}`);
     console.log(`Published: ${mostRecentPost.pubDate}`);
     
-    // Use the post link as a unique identifier
-    const postUrl = mostRecentPost.link;
+    // Use the post link as a unique identifier — normalize %20 to dashes
+    const postUrl = mostRecentPost.link.replace(/%20/gi, '-');
     
     // Check if we've already sent this post
     const alreadySent = await isPostSent(postUrl);
