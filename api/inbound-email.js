@@ -41,7 +41,7 @@ export async function POST(request) {
     // Prepend a reminder banner so it's clear which From address to use when replying
     const replyAddress = 'brendan@brendanbockes.com';
     const banner = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-family:sans-serif;font-size:13px;color:#713f12;">
-  <strong>Reply as:</strong> ${replyAddress} &nbsp;—&nbsp; switch the From field before sending.
+  <strong>Before sending your reply:</strong> switch From to ${replyAddress}, then delete this quoted message so it's not included in your reply.
 </div>`;
     const htmlWithBanner = email.html ? banner + email.html : undefined;
 

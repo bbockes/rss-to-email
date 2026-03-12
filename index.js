@@ -185,7 +185,7 @@ async function sendEmailBroadcast(post) {
     },
     body: JSON.stringify({
       audience_id: process.env.RESEND_AUDIENCE_ID,
-      from: 'Brendan\'s Blog <blog@brendanbockes.com>',
+      from: 'Brendan\'s Blog <brendan@brendanbockes.com>',
       subject: `New Post: ${post.title}`,
       html: html,
       name: `Blog Post: ${post.title}`
