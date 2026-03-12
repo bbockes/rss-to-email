@@ -1,5 +1,4 @@
-// Resend inbound webhook: forwards received emails to your Gmail (or any address).
-// Deploy to Vercel and set FORWARD_INBOUND_TO + RESEND_API_KEY in project env.
+import { Resend } from 'resend';
 
 export async function POST(request) {
   try {
@@ -30,25 +29,22 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: 'Missing email_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}/forward`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ to, from }),
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.receiving.forward({
+      emailId,
+      to,
+      from,
     });
 
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error('Resend forward error:', res.status, body);
-      return new Response(JSON.stringify(body), {
-        status: res.status,
+    if (error) {
+      console.error('Resend forward error:', error);
+      return new Response(JSON.stringify(error), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify(body), {
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
