@@ -402,6 +402,23 @@ You can use this to:
 
 Each day at 5 AM, the system sends whichever post is "most recent" by publish date.
 
+## Forwarding inbound email to Gmail
+
+If you use Resend's "Enable Receiving" for your domain (e.g. so "Reach out" links use `brendan@brendanbockes.com`), Resend receives the mail but doesn't give you an IMAP inbox. To get those emails in Gmail (or Spark):
+
+1. **Deploy the webhook** to Vercel (same repo is fine):
+   - Connect this repo to [Vercel](https://vercel.com) and deploy.
+   - In Vercel → Project → Settings → Environment Variables, add:
+     - `RESEND_API_KEY` – your Resend API key (same as Render cron).
+     - `FORWARD_INBOUND_TO` – your Gmail (e.g. `you@gmail.com`).
+     - (Optional) `INBOUND_FROM_EMAIL` – e.g. `Brendan <brendan@brendanbockes.com>` if you want a custom From.
+2. **Add the webhook in Resend**: Domains → your domain isn’t needed for this; go to **Webhooks** → Add webhook:
+   - **Endpoint URL:** `https://<your-vercel-app>.vercel.app/api/inbound-email`
+   - **Events:** `email.received`
+   - Save.
+
+Inbound mail to `brendan@brendanbockes.com` will be forwarded to your Gmail so you can read and reply from there.
+
 ## Troubleshooting
 
 ### "No posts found in feed"
