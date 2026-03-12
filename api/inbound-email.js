@@ -38,13 +38,20 @@ export async function POST(request) {
       return new Response(JSON.stringify(fetchError), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // Prepend a reminder banner so it's clear which From address to use when replying
+    const replyAddress = 'brendan@brendanbockes.com';
+    const banner = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-family:sans-serif;font-size:13px;color:#713f12;">
+  <strong>Reply as:</strong> ${replyAddress} &nbsp;—&nbsp; switch the From field before sending.
+</div>`;
+    const htmlWithBanner = email.html ? banner + email.html : undefined;
+
     // Send to inbox with reply-to set to the original sender,
     // so hitting reply goes directly back to them
     const { data, error } = await resend.emails.send({
       from,
       to,
       subject: email.subject || '(no subject)',
-      html: email.html || undefined,
+      html: htmlWithBanner || undefined,
       text: email.text || undefined,
       replyTo: email.from,
     });
