@@ -157,6 +157,24 @@ async function sendEmailBroadcast(post) {
   
   // Process links to ensure they're properly styled for email clients
   fullContent = processLinksForEmail(fullContent);
+
+  // Add inline margin to <p> tags so paragraph spacing renders in email clients
+  fullContent = fullContent.replace(
+    /<p\s*([^>]*?)>/gi,
+    (match, attributes) => {
+      attributes = attributes.trim();
+      const styleMatch = attributes.match(/style\s*=\s*["']([^"']*?)["']/i);
+      if (styleMatch) {
+        const existingStyles = styleMatch[1];
+        if (/margin/i.test(existingStyles)) return match;
+        return match.replace(
+          /style\s*=\s*["'][^"']*?["']/i,
+          `style="${existingStyles.trim()} margin:0 0 1em 0;"`
+        );
+      }
+      return `<p${attributes ? ' ' + attributes + ' ' : ' '}style="margin:0 0 1em 0;">`;
+    }
+  );
   
   // Extract preview text (first ~150 chars, strip HTML tags)
   const previewText = fullContent
