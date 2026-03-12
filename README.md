@@ -204,7 +204,7 @@ You need these environment variables set in Render:
 RESEND_API_KEY=re_xxxxxxxxxxxxx        # From Resend > API Keys
 RESEND_AUDIENCE_ID=xxxxxxxx-xxxx-xxxx  # From Resend > Audiences
 SUPABASE_URL=https://xxx.supabase.co   # From Supabase > Settings > API
-SUPABASE_KEY=xxxxxxxxxxxxx             # From Supabase > Settings > API (anon/public key)
+SUPABASE_KEY=xxxxxxxxxxxxx             # From Supabase > Settings > API (service_role/secret key)
 ```
 
 ### Database Setup
