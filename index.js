@@ -9,6 +9,31 @@ import fs from 'fs/promises';
 
 const RSS_FEED_URL = 'https://blog.brendanbockes.com/feed.xml';
 
+const MAX_FEED_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
+
+// Retry network requests that can fail transiently (e.g. ECONNRESET)
+async function withRetry(fn, options = {}) {
+  const { maxAttempts = MAX_FEED_RETRIES, delayMs = RETRY_DELAY_MS } = options;
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const retryable = ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND'].includes(err?.code) ||
+        /socket disconnected|TLS|network/i.test(err?.message || '');
+      if (attempt < maxAttempts && retryable) {
+        console.warn(`RSS fetch attempt ${attempt} failed (${err?.code || err.message}), retrying in ${delayMs}ms...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}
+
 // Initialize
 const parser = new Parser();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -209,14 +234,14 @@ async function checkFeedAndSend() {
     const sentCount = await getSentPostsCount();
     console.log(`Previously sent ${sentCount} posts`);
     
-    // Parse the feed
-    const feed = await parser.parseURL(RSS_FEED_URL);
+    // Parse the feed (with retries for transient network errors)
+    const feed = await withRetry(() => parser.parseURL(RSS_FEED_URL));
     
     // Get the most recent post
     const mostRecentPost = feed.items[0];
     
     if (!mostRecentPost) {
-      console.log('No posts found in feed.');
+      console.log('No posts found in feed. Nothing to send.');
       return;
     }
     
@@ -230,11 +255,11 @@ async function checkFeedAndSend() {
     const alreadySent = await isPostSent(postUrl);
     
     if (alreadySent) {
-      console.log('This post has already been sent. Skipping.');
+      console.log('This post has already been sent. Skipping.', { postUrl });
       return;
     }
     
-    console.log('New post detected! Sending email...');
+    console.log('New post detected! Sending email...', { postUrl });
     
     await sendEmailBroadcast(mostRecentPost);
     
