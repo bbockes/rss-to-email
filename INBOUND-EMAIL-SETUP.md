@@ -78,4 +78,4 @@ When you reply, pick **“From: brendan@brendanbockes.com”** and the message i
 
 ---
 
-When you have a question about this setup, you can point to this file: **INBOUND-EMAIL-SETUP.md**.
+When you have a question about this setup, you can point to this file: **inbound-email-setup.md**.
