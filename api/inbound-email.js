@@ -30,14 +30,27 @@ export async function POST(request) {
     }
 
     const resend = new Resend(apiKey);
-    const { data, error } = await resend.emails.receiving.forward({
-      emailId,
-      to,
+
+    // Fetch full email content so we can forward html/text and set reply-to
+    const { data: email, error: fetchError } = await resend.emails.receiving.get(emailId);
+    if (fetchError) {
+      console.error('Error fetching received email:', fetchError);
+      return new Response(JSON.stringify(fetchError), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Send to inbox with reply-to set to the original sender,
+    // so hitting reply goes directly back to them
+    const { data, error } = await resend.emails.send({
       from,
+      to,
+      subject: email.subject || '(no subject)',
+      html: email.html || undefined,
+      text: email.text || undefined,
+      replyTo: email.from,
     });
 
     if (error) {
-      console.error('Resend forward error:', error);
+      console.error('Resend send error:', error);
       return new Response(JSON.stringify(error), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
