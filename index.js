@@ -44,6 +44,50 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// Verify we can read from and write to sent_posts before doing anything.
+// This catches RLS / wrong-key issues BEFORE we accidentally send duplicate emails.
+async function verifyDatabaseAccess() {
+  const testUrl = '__health_check__';
+
+  const { error: selectError } = await supabase
+    .from('sent_posts')
+    .select('post_url')
+    .eq('post_url', testUrl)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new Error(
+      `Database SELECT check failed (${selectError.code}): ${selectError.message}\n` +
+      rls42501Help(selectError)
+    );
+  }
+
+  const { error: insertError } = await supabase
+    .from('sent_posts')
+    .upsert({ post_url: testUrl, post_title: 'health-check', sent_at: new Date().toISOString() },
+            { onConflict: 'post_url' });
+
+  if (insertError) {
+    throw new Error(
+      `Database INSERT check failed (${insertError.code}): ${insertError.message}\n` +
+      rls42501Help(insertError)
+    );
+  }
+
+  // Clean up the health-check row
+  await supabase.from('sent_posts').delete().eq('post_url', testUrl);
+}
+
+function rls42501Help(error) {
+  if (error?.code !== '42501') return '';
+  return (
+    '\n--- HOW TO FIX (run in Supabase SQL Editor) ---\n' +
+    'CREATE POLICY "allow_all_sent_posts" ON sent_posts\n' +
+    '  FOR ALL USING (true) WITH CHECK (true);\n' +
+    '-----------------------------------------------\n'
+  );
+}
+
 // Check if a post has been sent
 async function isPostSent(postUrl) {
   const { data, error } = await supabase
@@ -74,6 +118,9 @@ async function markPostAsSent(postUrl, postTitle) {
   
   if (error) {
     console.error('Error saving sent post:', error);
+    if (error.code === '42501') {
+      console.error(rls42501Help(error));
+    }
     throw error;
   }
 }
@@ -246,6 +293,9 @@ async function sendEmailBroadcast(post) {
 // Main function
 async function checkFeedAndSend() {
   try {
+    // Verify database access first — abort before sending any email if broken
+    await verifyDatabaseAccess();
+
     console.log('Checking RSS feed...');
     
     // Get count of previously sent posts
