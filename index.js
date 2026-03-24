@@ -201,6 +201,16 @@ async function sendEmailBroadcast(post) {
   
   // Use content:encoded first (full content), then fallback to content, then snippet
   let fullContent = post['content:encoded'] || post.content || post.contentSnippet || '';
+
+  // Preserve newline-delimited lines inside RSS paragraph blocks for email clients.
+  // Many clients collapse raw newlines unless they are explicit <br> elements.
+  fullContent = fullContent.replace(
+    /(<p\b[^>]*>)([\s\S]*?)(<\/p>)/gi,
+    (match, openTag, innerHtml, closeTag) => {
+      const withBreaks = innerHtml.replace(/\r\n|\r|\n/g, '<br>');
+      return `${openTag}${withBreaks}${closeTag}`;
+    }
+  );
   
   // Process links to ensure they're properly styled for email clients
   fullContent = processLinksForEmail(fullContent);
